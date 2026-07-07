@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capacity Trade-off Planner</title>
+<style>
+  :root{
+    --accent:#51368E; --accent-d:#3c2769; --teal:#13c39a; --teal-l:#78F5CE;
+    --ink:#1f2330; --muted:#6b7280; --line:#e6e6ef; --bg:#f4f4f9;
+    --green:#16a34a; --amber:#d97706; --red:#dc2626; --card:#ffffff; --jira:#0c66e4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  header{background:linear-gradient(120deg,var(--accent),var(--accent-d));color:#fff;padding:18px 24px}
+  header h1{margin:0;font-size:20px;font-weight:700}
+  header .sub{opacity:.85;font-size:13px;margin-top:3px}
+  .wrap{max-width:1280px;margin:0 auto;padding:18px 24px 60px}
+
+  .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:16px 0;padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:12px}
+  .seg{display:inline-flex;background:#eceaf4;border-radius:9px;padding:3px;flex-wrap:wrap}
+  .seg button{border:0;background:transparent;padding:7px 14px;border-radius:7px;font-weight:600;cursor:pointer;color:var(--accent);font-size:13px}
+  .seg button.active{background:var(--accent);color:#fff}
+  .ctrl-label{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .mini{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 10px;cursor:pointer;font-weight:700;color:var(--accent);font-size:13px}
+  .assump{margin-left:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .assump label{font-size:12px;color:var(--muted);display:flex;gap:5px;align-items:center}
+  .assump input{width:48px;padding:5px;border:1px solid var(--line);border-radius:6px;text-align:center;font-size:13px}
+  .btn-reset{border:1px solid var(--line);background:#fff;border-radius:7px;padding:7px 12px;cursor:pointer;font-weight:600;color:var(--muted)}
+
+  .cap{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  .cap-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+  .cap-head h2{margin:0;font-size:16px;color:var(--accent)}
+  .cap-nums{font-size:13px;color:var(--muted)} .cap-nums b{font-size:15px}
+  .bar{position:relative;height:26px;background:#eceaf4;border-radius:8px;margin-top:12px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:8px;transition:width .35s ease,background .35s;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-weight:700;font-size:12px;white-space:nowrap}
+  .bar-cap-line{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.55}
+  .cap-msg{margin-top:9px;font-size:13px;font-weight:600}
+
+  .toolbar2{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 16px;padding:12px 16px;background:#fff;border:1px solid var(--line);border-radius:12px}
+  .toolbar2 .tb-label{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .tb-btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:7px 12px;cursor:pointer;font-weight:700;color:var(--accent);font-size:13px}
+  .tb-btn:hover{background:#f6f4fc}
+  .tb-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tb-btn.jira{background:var(--jira);color:#fff;border-color:var(--jira)}
+  .toolbar2 select,.toolbar2 input{padding:7px;border:1px solid var(--line);border-radius:7px;font-size:13px}
+  .toolbar2 .sep{width:1px;height:24px;background:var(--line);margin:0 4px}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .col{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;min-height:200px}
+  .col.in{border-top:3px solid var(--teal)}
+  .col.out{border-top:3px solid #c9c9d6;background:#fafafd}
+  .col h3{margin:4px 6px 12px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:flex;justify-content:space-between}
+  .col h3 .sum{color:var(--ink);font-weight:700}
+  .col.drag-over{background:#eefcf6;outline:2px dashed var(--teal)}
+  .add-btn{width:100%;border:1px dashed #c4c4d4;background:#fff;border-radius:9px;padding:9px;cursor:pointer;font-weight:700;color:var(--accent);font-size:13px;margin-top:4px}
+  .add-btn:hover{background:#f6f4fc}
+
+  .item{border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:10px;background:var(--card);position:relative;transition:box-shadow .15s}
+  .item:hover{box-shadow:0 3px 12px rgba(60,39,105,.12)}
+  .item.dragging{opacity:.4}
+  .item.insert-before{border-top:3px solid var(--teal)}
+  .prio{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:12px;margin-right:6px;flex:0 0 auto}
+  .prio.parked{background:#c9c9d6}
+  .item .grip{cursor:grab;color:#c0c0cf;font-size:14px;user-select:none;padding-right:4px}
+  .item .row1{display:flex;align-items:flex-start;gap:6px}
+  .item .name{font-weight:700;font-size:14px;line-height:1.25;flex:1;padding-right:150px}
+  .item .motiv{color:var(--muted);font-size:12px;margin-top:5px;line-height:1.4}
+  .badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .b{font-size:10.5px;font-weight:700;padding:3px 7px;border-radius:20px;letter-spacing:.02em;display:inline-flex;align-items:center;gap:4px}
+  .b-eff{background:#ede9f7;color:var(--accent)}
+  .b-cust{background:#fde8e8;color:var(--red)}
+  .b-nocust{background:#eef0f3;color:#7a8190}
+  .b-dl{background:#fff1df;color:var(--amber)}
+  .b-goal{background:#e7f6ef;color:#0f7a52}
+  .b-scope{background:#eef0f3;color:#555}
+  .b-tag{background:#fff;color:#8a5a00;border:1px dashed #e0a53c}
+  .b-src0{background:#eef0f3;color:#555}
+  .b-src1{background:var(--teal-l);color:#0b6b4f}
+  .b-src2{background:#e7ecfb;color:#274bb5}
+  .b-src3{background:var(--accent);color:#fff}
+  .ctrls{position:absolute;top:9px;right:9px;display:flex;gap:3px}
+  .ic{border:1px solid var(--line);background:#fff;border-radius:6px;font-size:12px;font-weight:700;padding:2px 6px;cursor:pointer;color:var(--accent);line-height:1.3}
+  .ic:hover{background:#f3f0fb} .ic.danger{color:var(--red)}
+  .empty{color:#b3b3c2;font-size:12px;text-align:center;padding:18px 0;font-style:italic}
+
+  .edit{margin-top:6px;border-top:1px dashed var(--line);padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .edit .full{grid-column:1/3}
+  .edit label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);display:block;margin-bottom:3px}
+  .edit input,.edit select,.edit textarea{width:100%;padding:6px 7px;border:1px solid var(--line);border-radius:7px;font-size:13px;font-family:inherit}
+  .edit textarea{resize:vertical;min-height:42px}
+  .edit .save{grid-column:1/3;display:flex;gap:8px;justify-content:flex-end;margin-top:2px}
+  .save .ok{background:var(--accent);color:#fff;border:0;border-radius:7px;padding:7px 16px;font-weight:700;cursor:pointer}
+  .save .cancel{background:#fff;border:1px solid var(--line);border-radius:7px;padding:7px 14px;font-weight:700;cursor:pointer;color:var(--muted)}
+
+  .legend{font-size:11.5px;color:var(--muted);margin:14px 2px 0;line-height:1.8}
+  .legend b{color:var(--ink)}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:9px;font-weight:600;font-size:13px;opacity:0;transition:opacity .25s;z-index:50;pointer-events:none}
+  .toast.show{opacity:.96}
+  dialog{border:0;border-radius:14px;padding:0;max-width:640px;width:94%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  dialog::backdrop{background:rgba(31,35,48,.45)}
+  .dlg-h{background:var(--accent);color:#fff;padding:14px 18px;font-weight:700;font-size:15px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center}
+  .dlg-h.jira{background:var(--jira)}
+  .dlg-b{padding:16px 18px;max-height:66vh;overflow:auto}
+  .dlg-b p{margin:6px 0;font-size:13px;color:var(--muted)}
+  .dlg-b h4{margin:14px 0 6px;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.04em}
+  .dlg-b textarea{width:100%;min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:10px}
+  .dlg-row{display:flex;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
+  .dlg-row label{font-size:12px;font-weight:700;color:var(--ink)}
+  .dlg-row input,.dlg-row select{padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:13px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid6{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .teamrow{display:flex;gap:8px;align-items:center;margin:6px 0}
+  .teamrow input.tn{flex:1}
+  .teamrow input.td{width:64px}
+  .dlg-x{cursor:pointer;font-size:18px;background:transparent;border:0;color:#fff}
+  .dlg-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+  @media(max-width:820px){.cols{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="appTitle">Capacity Trade-off Planner</h1>
+  <div class="sub">Drag items in/out of the plan and watch capacity update. One view per team · two time scopes · fully editable.</div>
+</header>
+
+<div class="wrap">
+
+  <div class="controls">
+    <span class="ctrl-label">Team</span>
+    <div class="seg" id="teamSeg"></div>
+    <button class="mini" id="addTeam" title="Add a team">＋ team</button>
+
+    <span class="ctrl-label" style="margin-left:6px">Scope</span>
+    <div class="seg" id="scopeSeg">
+      <button data-scope="a" class="active"></button>
+      <button data-scope="b"></button>
+    </div>
+
+    <div class="assump">
+      <label id="devWrap">Devs <input id="devs" type="number" min="0" value="4"></label>
+      <label title="Time lost per dev to offsites/overhead, applied to both scopes">Overhead d/dev <input id="overhead" type="number" min="0" value="0"></label>
+      <label>Buffer % <input id="buf" type="number" min="0" max="90" value="0"></label>
+      <button class="mini" id="settingsBtn">⚙ Settings</button>
+      <button class="btn-reset" id="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="cap" id="capBox">
+    <div class="cap-head"><h2 id="capTitle"></h2><div class="cap-nums" id="capNums"></div></div>
+    <div class="bar"><div class="bar-fill" id="barFill"></div><div class="bar-cap-line" id="capLine"></div></div>
+    <div class="cap-msg" id="capMsg"></div>
+  </div>
+
+  <div class="toolbar2">
+    <span class="tb-label">Save</span>
+    <button class="tb-btn primary" id="snapSave">💾 Save snapshot</button>
+    <select id="snapList"><option value="">Load snapshot…</option></select>
+    <button class="tb-btn" id="snapDel" title="Delete selected snapshot">🗑</button>
+    <span class="sep"></span>
+    <span class="tb-label">Export</span>
+    <button class="tb-btn" id="expJson">⬇ JSON</button>
+    <button class="tb-btn" id="impJson">⬆ Import JSON</button>
+    <input type="file" id="impFile" accept="application/json" style="display:none">
+    <button class="tb-btn" id="expCsv">⬇ Jira CSV</button>
+    <span class="sep"></span>
+    <button class="tb-btn jira" id="jiraBtn">↗ Push to Jira</button>
+  </div>
+
+  <div class="cols">
+    <div class="col in" id="colIn" data-target="in">
+      <h3>✅ In the plan <span class="sum" id="sumIn"></span></h3>
+      <div id="listIn"></div>
+      <button class="add-btn" data-addto="in">+ Add item to plan</button>
+    </div>
+    <div class="col out" id="colOut" data-target="out">
+      <h3>⏸ Out / parked <span class="sum" id="sumOut"></span></h3>
+      <div id="listOut"></div>
+      <button class="add-btn" data-addto="out">+ Add parked item</button>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+</div>
+
+<!-- SETTINGS -->
+<dialog id="setDlg">
+  <div class="dlg-h">⚙ Settings<button class="dlg-x" data-close="setDlg">✕</button></div>
+  <div class="dlg-b">
+    <h4>Board</h4>
+    <div class="dlg-row"><label>Board title</label><input id="setTitle" style="flex:1"></div>
+
+    <h4>Time scopes</h4>
+    <div class="grid2">
+      <div><label>Near-term label</label><input id="scA"><label style="margin-top:6px">Work-days / dev</label><input id="scAd" type="number" min="0"></div>
+      <div><label>Full-period label</label><input id="scB"><label style="margin-top:6px">Work-days / dev</label><input id="scBd" type="number" min="0"></div>
+    </div>
+    <p>Items tagged to the near-term scope count in <i>both</i> views. Items tagged to the full period count only in the full view.</p>
+
+    <h4>Effort → dev-days</h4>
+    <div class="grid6" id="sizeGrid"></div>
+
+    <h4>Company goals (one per line)</h4>
+    <textarea id="setGoals" style="min-height:90px"></textarea>
+
+    <h4>Teams</h4>
+    <div id="teamEditor"></div>
+    <button class="mini" id="addTeam2" style="margin-top:6px">＋ add team</button>
+  </div>
+  <div class="dlg-foot">
+    <button class="tb-btn" data-close="setDlg">Cancel</button>
+    <button class="tb-btn primary" id="setSave">Save settings</button>
+  </div>
+</dialog>
+
+<!-- JIRA -->
+<dialog id="jiraDlg">
+  <div class="dlg-h jira">↗ Push to Jira<button class="dlg-x" data-close="jiraDlg">✕</button></div>
+  <div class="dlg-b">
+    <p>This board is a local file, so it can't sign in to Jira directly. Use either path below.</p>
+    <div class="dlg-row">
+      <label>Project key</label><input id="jiraProj" placeholder="e.g. ABC" size="8">
+      <label>Issue type</label>
+      <select id="jiraType"><option>Task</option><option>Story</option><option>Epic</option><option>Initiative</option></select>
+      <label>Items</label>
+      <select id="jiraWhich"><option value="in">In-plan only</option><option value="all">All (in + parked)</option></select>
+    </div>
+    <p><b>Option A — via an AI assistant / Cowork:</b> click <i>Copy plan</i> and paste it into your assistant with "create these in Jira" (it keeps priority order, effort as the estimate, labels, and due dates).</p>
+    <p><b>Option B — Jira CSV import:</b> use <i>⬇ Jira CSV</i>, then in Jira: Filters → Import issues from CSV → map the columns.</p>
+    <textarea id="jiraOut" readonly style="min-height:180px"></textarea>
+    <div class="dlg-row" style="justify-content:flex-end">
+      <button class="tb-btn" id="jiraCopy">📋 Copy plan</button>
+      <button class="tb-btn jira" id="jiraCsv2">⬇ Jira CSV</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SIZES=['XS','S','M','M-L','L','XL'];
+const SOURCES=['Planned','New ask','Stakeholder ask','Tech / Other'];
+
+const G={c:'Customer & business commitments', v:'Increase product value / reduce churn', e:'Enterprise readiness (compliance/scale/stability)', g:'Strategic initiatives for growth (PopHealth, COGS)', epic:'Product-market fit in Epic'};
+// src index: 0 Planned · 1 New ask · 2 Stakeholder ask (VP R&D) · 3 Tech/Other
+function defaultConfig(){
+  return {
+    title:'PT 2026 Q3 — Capacity & Trade-off',
+    scopes:{a:{label:'July', days:22}, b:{label:'Full Q3', days:63}},
+    overhead:5, buffer:0,
+    sizes:{XS:5,S:10,M:20,'M-L':35,L:50,XL:70},
+    goals:[G.c,G.v,G.epic,G.e,G.g],
+    teams:[
+      {id:'tm1', name:'Transformation', devs:3, items:[
+        {id:'t1', name:'Continue Support + Customization for KP Mid-Atlantic', motiv:'Onboard KP Mid-Atlantic successfully (ongoing)', eff:'S', scope:'a', src:0, cust:'KP Mid-Atlantic', deadline:'', goal:G.c, tag:'', on:true},
+        {id:'t2', name:'Continue Support for KP HP Run', motiv:'KP go-live is a top business commitment (ongoing)', eff:'S', scope:'a', src:0, cust:'KP', deadline:'', goal:G.c, tag:'', on:true},
+        {id:'t3', name:'Support Metriport Rollout Plan', motiv:'Stability & scalability of the HIE business; replace HG with Metriport', eff:'M', scope:'a', src:0, cust:'KP, Evergreen (Replace HG)', deadline:'', goal:G.g, tag:'', on:true},
+        {id:'t4', name:'Preview env deprecation', motiv:'Reduce maintenance time + improve data performance', eff:'M', scope:'a', src:0, cust:'', deadline:'31/7', goal:G.e, tag:'', on:true},
+        {id:'t5', name:'Move Athena pipeline → Dataview — Tech Design + Initial Dev', motiv:'Enable growth in scale & use cases; partial Athena API replacement', eff:'M-L', scope:'a', src:0, cust:'Athena API (stop internal APIs)', deadline:'31/7', goal:G.e, tag:'', on:true},
+        {id:'t6', name:'Metriport in US access for KP', motiv:'Soft commitment for July — recently prioritized, not in original plan', eff:'S', scope:'a', src:1, cust:'KP (soft)', deadline:'', goal:G.g, tag:'', on:true},
+        {id:'t7', name:'Move Athena pipeline → Dataview — Implementation', motiv:'Enable growth in scale & use cases; partial Athena API replacement', eff:'L', scope:'b', src:0, cust:'Athena API', deadline:'EOQ3', goal:G.e, tag:'', on:true},
+        {id:'t8', name:'E2E Testing', motiv:'Stability / enterprise readiness; reduce critical/high incidents post-release', eff:'M', scope:'b', src:0, cust:'', deadline:'', goal:G.e, tag:'', on:true},
+        {id:'t9', name:'Data Quality', motiv:'Improve accuracy, increase customer trust, close quality data gaps', eff:'M', scope:'b', src:0, cust:'', deadline:'', goal:G.v, tag:'', on:true},
+        {id:'t10', name:'Security — Dependabot & CodeQL (high + critical)', motiv:'VP R&D ask — close high/critical security findings; compliance risk', eff:'M', scope:'a', src:2, cust:'', deadline:'', goal:G.e, tag:'', on:false},
+        {id:'t11', name:'COGS Reduction', motiv:'VP R&D ask — reduce delivery & hosting COGS by 10% (EOY target)', eff:'L', scope:'a', src:2, cust:'', deadline:'', goal:G.g, tag:'', on:false},
+        {id:'t12', name:'Navina 3.0 — Architecture Changes', motiv:'VP R&D ask — scale initiative to let Navina work at scale', eff:'XL', scope:'a', src:2, cust:'', deadline:'', goal:G.e, tag:'Scope not yet defined', on:false}
+      ]},
+      {id:'tm2', name:'Processing', devs:5, items:[
+        {id:'p1', name:'Continue Support for KP HP Run', motiv:'KP go-live is a top business commitment; provider creds + specialty, filter non-English docs', eff:'S', scope:'a', src:0, cust:'KP', deadline:'', goal:G.c, tag:'', on:true},
+        {id:'p2', name:'Labs Coverage', motiv:'Improve risk-adjustment coverage + accuracy (spirometry, unit parsing)', eff:'M', scope:'a', src:0, cust:'', deadline:'31/7', goal:G.v, tag:'', on:true},
+        {id:'p3', name:'Complete PHQ move to serving layer', motiv:'Preview.env deprecation + foundation for serving internal consumers', eff:'M', scope:'a', src:0, cust:'', deadline:'31/7', goal:G.e, tag:'', on:true},
+        {id:'p4', name:'CCDA Extraction + Viewer — Extension 1', motiv:'Increase coverage & product accuracy; improve CCDA docs experience (labs, vitals)', eff:'M', scope:'a', src:0, cust:'', deadline:'31/7', goal:G.v, tag:'', on:true},
+        {id:'p5', name:'Enable CDPS Support', motiv:'Customer commitment for KP MA — Medicaid risk models (CDPS)', eff:'S', scope:'a', src:1, cust:'KP Mid-Atlantic', deadline:'', goal:G.c, tag:'', on:true},
+        {id:'p6', name:'E2E Testing', motiv:'Stability / enterprise readiness; reduce critical/high incidents post-release', eff:'M', scope:'b', src:0, cust:'', deadline:'', goal:G.e, tag:'', on:true},
+        {id:'p7', name:'CCDA Extraction + Viewer — Extension 2', motiv:'Increase coverage & product accuracy; improve CCDA docs experience (meds, procedures)', eff:'M', scope:'b', src:0, cust:'', deadline:'', goal:G.v, tag:'', on:true},
+        {id:'p8', name:'Documents observability', motiv:'Full visibility for file-upload + portrait failures; documents pipeline bug hunt', eff:'S', scope:'b', src:0, cust:'', deadline:'', goal:G.e, tag:'', on:true},
+        {id:'p9', name:'Document type classification (specialty label)', motiv:'Improve customer engagement; customer ask (Upperline)', eff:'M', scope:'b', src:0, cust:'Upperline (ask)', deadline:'', goal:G.v, tag:'', on:true},
+        {id:'p10', name:'Security — Dependabot & CodeQL (high + critical)', motiv:'VP R&D ask — close high/critical security findings; compliance risk', eff:'M', scope:'a', src:2, cust:'', deadline:'', goal:G.e, tag:'', on:false},
+        {id:'p11', name:'COGS Reduction', motiv:'VP R&D ask — reduce delivery & hosting COGS by 10% (EOY target)', eff:'L', scope:'a', src:2, cust:'', deadline:'', goal:G.g, tag:'', on:false},
+        {id:'p12', name:'Navina 3.0 — Architecture Changes', motiv:'VP R&D ask — scale initiative to let Navina work at scale', eff:'XL', scope:'a', src:2, cust:'', deadline:'', goal:G.e, tag:'Scope not yet defined', on:false}
+      ]}
+    ]
+  };
+}
+
+let _uid=1;
+const clone=o=>JSON.parse(JSON.stringify(o));
+let CFG=defaultConfig();
+let teamIdx=0, scope='a', editId=null;
+const $=id=>document.getElementById(id);
+
+function ensureIds(){ let mx=0; CFG.teams.forEach(t=>{ if(!t.id)t.id='tm'+(_uid++); t.items.forEach(it=>{ if(!it.id)it.id='i'+(_uid++); const n=+(String(it.id).replace(/\D/g,'')||0); if(n>mx)mx=n; }); }); _uid=Math.max(_uid,mx+1); }
+
+/* ---- persistence ---- */
+function saveState(){ try{localStorage.setItem('captool_v2',JSON.stringify(CFG));}catch(e){} }
+function loadState(){ try{ const s=JSON.parse(localStorage.getItem('captool_v2')||'null'); if(s&&s.teams){CFG=s;} }catch(e){} ensureIds(); }
+
+const team=()=>CFG.teams[teamIdx];
+function daysPerDev(){ return Math.max(0, CFG.scopes[scope].days - (+CFG.overhead||0)); }
+function capacity(){ return Math.round((+team().devs||0) * daysPerDev() * (1-(+CFG.buffer||0)/100)); }
+function relevant(){ return team().items.filter(it => scope==='b' ? true : it.scope==='a'); }
+function effDays(it){ return CFG.sizes[it.eff]||0; }
+function findItem(id){ return team().items.find(i=>i.id===id); }
+function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ---- render ---- */
+function renderTeamSeg(){
+  $('teamSeg').innerHTML=CFG.teams.map((t,i)=>`<button data-ti="${i}" class="${i===teamIdx?'active':''}">${esc(t.name)}</button>`).join('');
+}
+function renderScopeSeg(){
+  const b=$('scopeSeg').children; b[0].textContent=CFG.scopes.a.label; b[1].textContent=CFG.scopes.b.label;
+  b[0].classList.toggle('active',scope==='a'); b[1].classList.toggle('active',scope==='b');
+}
+function srcBadge(it){ const i=(+it.src||0); return `<span class="b b-src${i}">${esc(SOURCES[i]||SOURCES[0])}</span>`; }
+
+function viewCard(it,rank){
+  const cust=it.cust?`<span class="b b-cust" title="Customer commitment">🤝 ${esc(it.cust)}</span>`:`<span class="b b-nocust">No customer commitment</span>`;
+  const dl=it.deadline?`<span class="b b-dl" title="Hard deadline">⏰ ${esc(it.deadline)}</span>`:'';
+  const sc=`<span class="b b-scope">${esc(CFG.scopes[it.scope].label)}</span>`;
+  const tag=it.tag?`<span class="b b-tag" title="Custom tag / note">🏷 ${esc(it.tag)}</span>`:'';
+  const prio=`<span class="prio ${it.on?'':'parked'}" title="${it.on?'Priority (top = #1)':'Parked'}">${it.on?rank:'–'}</span>`;
+  return `<div class="row1">${prio}<span class="grip" title="Drag to move / reorder">⠿</span><div class="name">${esc(it.name)}</div></div>
+    <div class="ctrls">
+      <button class="ic" data-act="up" title="Move up">↑</button>
+      <button class="ic" data-act="down" title="Move down">↓</button>
+      <button class="ic" data-act="toggle" title="Move column">${it.on?'⏸':'➕'}</button>
+      <button class="ic" data-act="edit" title="Edit">✎</button>
+      <button class="ic danger" data-act="del" title="Delete">🗑</button>
+    </div>
+    ${it.motiv?`<div class="motiv">${esc(it.motiv)}</div>`:''}
+    <div class="badges">
+      <span class="b b-eff">${it.eff} · ${effDays(it)}d</span>${cust}${dl}${tag}
+      <span class="b b-goal" title="Goal">🎯 ${esc(it.goal||'—')}</span>${sc}${srcBadge(it)}
+    </div>`;
+}
+function editCard(it){
+  const opt=(arr,v)=>arr.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('');
+  return `<div class="edit">
+    <div class="full"><label>Name</label><input data-f="name" value="${esc(it.name)}"></div>
+    <div class="full"><label>Motivation</label><textarea data-f="motiv">${esc(it.motiv)}</textarea></div>
+    <div><label>Effort</label><select data-f="eff">${opt(SIZES,it.eff)}</select></div>
+    <div><label>Scope</label><select data-f="scope"><option value="a" ${it.scope==='a'?'selected':''}>${esc(CFG.scopes.a.label)}</option><option value="b" ${it.scope==='b'?'selected':''}>${esc(CFG.scopes.b.label)}</option></select></div>
+    <div><label>Customer commitment (blank = none)</label><input data-f="cust" value="${esc(it.cust)}"></div>
+    <div><label>Hard deadline (blank = none)</label><input data-f="deadline" value="${esc(it.deadline)}"></div>
+    <div class="full"><label>Company goal</label><input list="goalList" data-f="goal" value="${esc(it.goal)}"></div>
+    <div class="full"><label>Free tag / note (e.g. “Deprioritised due to capacity”)</label><input data-f="tag" value="${esc(it.tag||'')}" placeholder="optional — anything you want"></div>
+    <div><label>Source tag</label><select data-f="src">${SOURCES.map((s,i)=>`<option value="${i}" ${i===(+it.src||0)?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
+    <div></div>
+    <div class="save"><button class="cancel" data-act="cancel">Cancel</button><button class="ok" data-act="save">Save</button></div>
+  </div>
+  <datalist id="goalList">${CFG.goals.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>`;
+}
+
+function render(){
+  renderTeamSeg(); renderScopeSeg();
+  $('appTitle').textContent=CFG.title; document.title=CFG.title;
+  $('devWrap').childNodes[0].textContent='Devs ('+team().name+') ';
+  $('devs').value=team().devs; $('overhead').value=CFG.overhead; $('buf').value=CFG.buffer;
+  $('capTitle').textContent=team().name+' — '+CFG.scopes[scope].label;
+
+  const rel=relevant(), inItems=rel.filter(i=>i.on), outItems=rel.filter(i=>!i.on);
+  const used=inItems.reduce((a,i)=>a+effDays(i),0), cap=capacity(), over=used>cap;
+  const bf=$('barFill');
+  bf.style.width=(cap>0?Math.min(used/cap*100,150):0)+'%';
+  bf.style.background= over?'linear-gradient(90deg,#dc2626,#ef4444)':((cap>0&&used/cap>0.85)?'linear-gradient(90deg,#d97706,#f59e0b)':'linear-gradient(90deg,#13c39a,#16a34a)');
+  bf.textContent=used+'d'; $('capLine').style.left=(100/1.5)+'%';
+  $('capNums').innerHTML=`Committed <b>${used}d</b> / Capacity <b>${cap}d</b> &nbsp;·&nbsp; ${team().devs} devs × (${CFG.scopes[scope].days}${(+CFG.overhead)?'−'+(+CFG.overhead)+' ovh':''})d`+((+CFG.buffer)?` ×${100-(+CFG.buffer)}%`:'');
+  const dpd=daysPerDev()*(1-(+CFG.buffer||0)/100), msg=$('capMsg');
+  if(over){msg.style.color='var(--red)';msg.textContent=`⚠ Over capacity by ${used-cap} dev-days (≈ ${(dpd?((used-cap)/dpd):0).toFixed(1)} dev-months). Something must move out.`;}
+  else if(cap>0&&used/cap>0.85){msg.style.color='var(--amber)';msg.textContent=`Near capacity — ${cap-used} dev-days of slack left.`;}
+  else{msg.style.color='var(--green)';msg.textContent=`Within capacity — ${cap-used} dev-days of slack available.`;}
+
+  const listHTML=arr=> arr.length? arr.map((it,i)=>`<div class="item" draggable="${editId!==it.id}" data-id="${it.id}">${it.id===editId?editCard(it):viewCard(it,i+1)}</div>`).join('') : '<div class="empty">Drag items here · or use “+ Add”</div>';
+  $('listIn').innerHTML=listHTML(inItems); $('listOut').innerHTML=listHTML(outItems);
+  $('sumIn').textContent=inItems.length+' items · '+used+'d';
+  $('sumOut').textContent=outItems.length+' items · '+outItems.reduce((a,i)=>a+effDays(i),0)+'d';
+
+  $('legend').innerHTML=`<b>Effort → dev-days</b>: ${SIZES.map(s=>`<span style="font-weight:700;color:var(--accent)">${s}</span> ${CFG.sizes[s]}d`).join(' · ')}<br>
+    <b>Capacity</b>: ${esc(CFG.scopes.a.label)} = devs × ${CFG.scopes.a.days}/dev · ${esc(CFG.scopes.b.label)} = devs × ${CFG.scopes.b.days}/dev${(+CFG.overhead)?' (minus '+CFG.overhead+' d/dev overhead)':''}. Edit any of this in ⚙ Settings.<br>
+    <b>Tip</b>: the number on each in-plan card is its priority (top = #1). Drag, or use ↑↓.`;
+  bindCards(); saveState();
+}
+
+function reorder(id,dir){ const it=findItem(id); const col=relevant().filter(x=>x.on===it.on);
+  const ci=col.indexOf(it), nb=col[ci+dir]; if(!nb)return; const arr=team().items;
+  const a=arr.indexOf(it), b=arr.indexOf(nb); arr[a]=nb; arr[b]=it; render(); }
+
+function bindCards(){
+  document.querySelectorAll('.item .ic, .item .ok, .item .cancel').forEach(btn=>{
+    btn.onclick=e=>{ e.stopPropagation(); const card=btn.closest('.item'), id=card.dataset.id, it=findItem(id), act=btn.dataset.act;
+      if(act==='up')reorder(id,-1); else if(act==='down')reorder(id,1);
+      else if(act==='toggle'){it.on=!it.on;render();}
+      else if(act==='del'){ if(confirm('Delete "'+it.name+'"?')){const a=team().items;a.splice(a.indexOf(it),1);if(editId===id)editId=null;render();} }
+      else if(act==='edit'){editId=id;render();}
+      else if(act==='cancel'){editId=null;render();}
+      else if(act==='save'){ card.querySelectorAll('[data-f]').forEach(f=>{ it[f.dataset.f]= f.dataset.f==='src'? (+f.value):f.value; }); editId=null; render(); }
+    };
+  });
+  document.querySelectorAll('.item[draggable="true"]').forEach(card=>{
+    card.addEventListener('dragstart',e=>{e.dataTransfer.setData('text',card.dataset.id);card.classList.add('dragging');});
+    card.addEventListener('dragend',()=>{card.classList.remove('dragging');document.querySelectorAll('.insert-before').forEach(x=>x.classList.remove('insert-before'));});
+    card.addEventListener('dragover',e=>{e.preventDefault();card.classList.add('insert-before');});
+    card.addEventListener('dragleave',()=>card.classList.remove('insert-before'));
+    card.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();card.classList.remove('insert-before');
+      const dragId=e.dataTransfer.getData('text'); if(dragId===card.dataset.id)return;
+      const drag=findItem(dragId),target=findItem(card.dataset.id); drag.on=target.on;
+      const arr=team().items; arr.splice(arr.indexOf(drag),1); arr.splice(arr.indexOf(target),0,drag); render();
+    });
+  });
+}
+['colIn','colOut'].forEach(cid=>{ const col=$(cid);
+  col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('drag-over');});
+  col.addEventListener('dragleave',()=>col.classList.remove('drag-over'));
+  col.addEventListener('drop',e=>{e.preventDefault();col.classList.remove('drag-over');
+    const it=findItem(e.dataTransfer.getData('text')); if(!it)return; it.on=col.dataset.target==='in';
+    const arr=team().items; arr.splice(arr.indexOf(it),1); arr.push(it); render();
+  });
+});
+document.querySelectorAll('.add-btn').forEach(b=>b.onclick=()=>{
+  const it={id:'i'+(_uid++),name:'New item',motiv:'',eff:'M',scope:scope,src:0,cust:'',deadline:'',goal:CFG.goals[0]||'',on:b.dataset.addto==='in'};
+  team().items.push(it); editId=it.id; render();
+});
+
+/* ---- top controls ---- */
+$('teamSeg').addEventListener('click',e=>{ if(e.target.dataset.ti!=null){teamIdx=+e.target.dataset.ti;editId=null;render();}});
+$('scopeSeg').addEventListener('click',e=>{ if(e.target.dataset.scope){scope=e.target.dataset.scope;editId=null;render();}});
+$('devs').addEventListener('input',e=>{team().devs=+e.target.value;render();});
+$('overhead').addEventListener('input',e=>{CFG.overhead=+e.target.value;render();});
+$('buf').addEventListener('input',e=>{CFG.buffer=+e.target.value;render();});
+$('addTeam').onclick=$('addTeam2')?null:null;
+function addTeam(){ const t={id:'tm'+(_uid++),name:'Team '+(CFG.teams.length+1),devs:4,items:[]}; CFG.teams.push(t); teamIdx=CFG.teams.length-1; render(); if($('setDlg').open)renderTeamEditor(); }
+$('addTeam').onclick=addTeam;
+$('reset').onclick=()=>{ if(!confirm('Reset the board back to the starting template? This discards your edits.'))return;
+  localStorage.removeItem('captool_v2'); CFG=defaultConfig(); ensureIds(); teamIdx=0;scope='a';editId=null; render(); };
+
+/* ---- settings dialog ---- */
+function commitTeamEditorInputs(){
+  // persist any name/devs edits currently in the editor before structural changes
+  $('teamEditor').querySelectorAll('input').forEach(inp=>{ const t=CFG.teams[+inp.dataset.ti]; if(!t)return;
+    if(inp.dataset.k==='name')t.name=inp.value; else t.devs=+inp.value; });
+}
+function renderTeamEditor(){
+  const only=CFG.teams.length<=1;
+  $('teamEditor').innerHTML=CFG.teams.map((t,i)=>`<div class="teamrow">
+    <input class="tn" data-ti="${i}" data-k="name" value="${esc(t.name)}">
+    <input class="td" data-ti="${i}" data-k="devs" type="number" min="0" value="${t.devs}">
+    <button class="ic danger" data-delteam="${i}" title="${only?'Add another team first':'Remove this team'}" ${only?'disabled':''}>Remove</button>
+  </div>`).join('');
+  $('teamEditor').querySelectorAll('[data-delteam]').forEach(b=>b.onclick=()=>{
+    if(CFG.teams.length<=1){toast('Need at least one team');return;}
+    const i=+b.dataset.delteam;
+    if(!confirm('Remove team "'+CFG.teams[i].name+'" and all its items? This cannot be undone.'))return;
+    commitTeamEditorInputs();
+    CFG.teams.splice(i,1);
+    if(teamIdx>=CFG.teams.length)teamIdx=CFG.teams.length-1;
+    editId=null; saveState(); renderTeamEditor(); render(); toast('Team removed');
+  });
+}
+function openSettings(){
+  $('setTitle').value=CFG.title;
+  $('scA').value=CFG.scopes.a.label; $('scAd').value=CFG.scopes.a.days;
+  $('scB').value=CFG.scopes.b.label; $('scBd').value=CFG.scopes.b.days;
+  $('sizeGrid').innerHTML=SIZES.map(s=>`<div><label style="font-size:10.5px;font-weight:700;color:var(--muted)">${s}</label><input id="sz_${s.replace('-','_')}" type="number" min="0" value="${CFG.sizes[s]}" style="width:100%;padding:6px;border:1px solid var(--line);border-radius:7px"></div>`).join('');
+  $('setGoals').value=CFG.goals.join('\n');
+  renderTeamEditor();
+  $('setDlg').showModal();
+}
+$('settingsBtn').onclick=openSettings;
+$('setSave').onclick=()=>{
+  CFG.title=$('setTitle').value||'Capacity Trade-off Planner';
+  CFG.scopes.a={label:$('scA').value||'Near-term',days:+$('scAd').value||0};
+  CFG.scopes.b={label:$('scB').value||'Full period',days:+$('scBd').value||0};
+  SIZES.forEach(s=>CFG.sizes[s]=+$('sz_'+s.replace('-','_')).value||0);
+  CFG.goals=$('setGoals').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  // team names/devs
+  $('teamEditor').querySelectorAll('input').forEach(inp=>{ const t=CFG.teams[+inp.dataset.ti]; if(!t)return; if(inp.dataset.k==='name')t.name=inp.value; else t.devs=+inp.value; });
+  if(teamIdx>=CFG.teams.length)teamIdx=0;
+  $('setDlg').close(); render(); toast('Settings saved');
+};
+
+/* ---- snapshots / export / import ---- */
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
+function download(name,text,type){const b=new Blob([text],{type:type||'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+function getSnaps(){try{return JSON.parse(localStorage.getItem('captool_snaps')||'{}');}catch(e){return {};}}
+function refreshSnapList(){const s=getSnaps();$('snapList').innerHTML='<option value="">Load snapshot…</option>'+Object.keys(s).sort().map(k=>`<option value="${esc(k)}">${esc(k)} — ${new Date(s[k].ts).toLocaleString()}</option>`).join('');}
+$('snapSave').onclick=()=>{const name=prompt('Snapshot name:','Plan '+new Date().toLocaleDateString());if(!name)return;const s=getSnaps();s[name]={ts:Date.now(),data:clone(CFG)};try{localStorage.setItem('captool_snaps',JSON.stringify(s));}catch(e){alert('Storage full');return;}refreshSnapList();toast('Saved “'+name+'”');};
+$('snapList').onchange=e=>{const k=e.target.value;if(!k)return;const s=getSnaps()[k];if(!s)return;if(!confirm('Load snapshot “'+k+'”? Current board will be replaced.'))return;CFG=clone(s.data);ensureIds();teamIdx=0;scope='a';editId=null;render();toast('Loaded “'+k+'”');};
+$('snapDel').onclick=()=>{const k=$('snapList').value;if(!k){toast('Pick a snapshot first');return;}if(!confirm('Delete snapshot “'+k+'”?'))return;const s=getSnaps();delete s[k];localStorage.setItem('captool_snaps',JSON.stringify(s));refreshSnapList();toast('Deleted');};
+$('expJson').onclick=()=>{download((CFG.title.replace(/[^\w]+/g,'_'))+'_'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(CFG,null,2),'application/json');toast('Exported JSON');};
+$('impJson').onclick=()=>$('impFile').click();
+$('impFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.teams)throw 0;CFG=d;ensureIds();teamIdx=0;scope='a';editId=null;render();toast('Imported');}catch(err){alert('Invalid board JSON');}};r.readAsText(f);e.target.value='';};
+
+/* ---- Jira ---- */
+function dueDate(dl){if(!dl)return'';const m=String(dl).match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);const yr=new Date().getFullYear();if(m){return `${m[3]?(m[3].length===2?'20'+m[3]:m[3]):yr}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;}const iso=String(dl).match(/^\d{4}-\d{2}-\d{2}$/);return iso?dl:'';}
+function jiraPriority(rank,it){if(it.cust||it.deadline)return rank<=3?'Highest':'High';return rank<=2?'High':(rank<=5?'Medium':'Low');}
+function planItems(which){const rel=relevant();const arr=which==='all'?rel:rel.filter(i=>i.on);return arr.filter(i=>i.on).concat(arr.filter(i=>!i.on));}
+function jiraRows(){
+  const proj=$('jiraProj').value.trim(),type=$('jiraType').value,which=$('jiraWhich').value,list=planItems(which);let rank=0;
+  return list.map(it=>{ if(it.on)rank++;
+    return {Project:proj,IssueType:type,Summary:it.name,
+      Description:`${it.motiv||''}\n\nGoal: ${it.goal||''}\nTeam: ${team().name} | Scope: ${CFG.scopes[it.scope].label} | Source: ${SOURCES[+it.src||0]}\nEffort: ${it.eff} (~${effDays(it)} dev-days)${it.cust?'\nCustomer commitment: '+it.cust:''}${it.tag?'\nTag: '+it.tag:''}`,
+      Priority:it.on?jiraPriority(rank,it):'Low',Rank:it.on?rank:'',
+      OriginalEstimate:`${effDays(it)}d`,StoryPoints:effDays(it),
+      Labels:[team().name.replace(/[^A-Za-z0-9]/g,''),CFG.scopes[it.scope].label.replace(/[^A-Za-z0-9]/g,''),(SOURCES[+it.src||0]||'').replace(/[^A-Za-z0-9]/g,''),it.cust?'CustomerCommitment':'',it.deadline?'HardDeadline':''].filter(Boolean).join(' '),
+      DueDate:dueDate(it.deadline),Status:it.on?'In plan':'Parked'};
+  });
+}
+function toCSV(rows){if(!rows.length)return'';const cols=Object.keys(rows[0]);const e=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};return cols.join(',')+'\n'+rows.map(r=>cols.map(c=>e(r[c])).join(',')).join('\n');}
+function exportCsv(){const csv=toCSV(jiraRows());if(!csv){toast('No items');return;}download(`Jira_${team().name.replace(/\W+/g,'_')}_${scope}_${new Date().toISOString().slice(0,10)}.csv`,csv,'text/csv');toast('Jira CSV downloaded');}
+$('expCsv').onclick=exportCsv; $('jiraCsv2').onclick=exportCsv;
+$('jiraBtn').onclick=()=>{buildJiraText();$('jiraDlg').showModal();};
+['jiraProj','jiraType','jiraWhich'].forEach(id=>$(id).addEventListener('input',buildJiraText));
+function buildJiraText(){
+  const rows=jiraRows();
+  const head=`Create Jira issues in project ${$('jiraProj').value.trim()||'<KEY>'}, issue type ${$('jiraType').value}. Team: ${team().name}. Scope: ${CFG.scopes[scope].label}. Keep priority order (1 = top).\n`;
+  const body=rows.map(r=>`${r.Rank?('#'+r.Rank):'[parked]'} ${r.Summary} — ${r.OriginalEstimate}${r.DueDate?(' — due '+r.DueDate):''}${r.Labels?(' — labels: '+r.Labels):''}\n   ${String(r.Description).replace(/\n/g,' | ')}`).join('\n');
+  $('jiraOut').value=head+'\n'+body;
+}
+$('jiraCopy').onclick=()=>{const t=$('jiraOut');t.select();(navigator.clipboard?navigator.clipboard.writeText(t.value):Promise.reject()).then(()=>toast('Copied'),()=>{document.execCommand('copy');toast('Copied');});};
+
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
+
+loadState(); refreshSnapList(); render();
+</script>
+</body>
+</html>
